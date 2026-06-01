@@ -31,6 +31,7 @@ const db = new sqlite3.Database('./cinema.db', sqlite3.OPEN_READWRITE, (err) => 
     } else {
         console.log('✅ Подключено к SQLite базе данных');
         
+        // Таблица users
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
@@ -45,11 +46,13 @@ const db = new sqlite3.Database('./cinema.db', sqlite3.OPEN_READWRITE, (err) => 
         db.run(`ALTER TABLE users ADD COLUMN avatar_url TEXT`, (err) => {});
         db.run(`ALTER TABLE users ADD COLUMN bio TEXT`, (err) => {});
         
+        // Таблица genres
         db.run(`CREATE TABLE IF NOT EXISTS genres (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE
         )`);
         
+        // Таблица movies (материалы)
         db.run(`CREATE TABLE IF NOT EXISTS movies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL UNIQUE,
@@ -61,8 +64,10 @@ const db = new sqlite3.Database('./cinema.db', sqlite3.OPEN_READWRITE, (err) => 
             rating INTEGER
         )`);
         
+        // Таблица requests (заявки) с user_id
         db.run(`CREATE TABLE IF NOT EXISTS requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
             phone TEXT NOT NULL,
             messenger TEXT NOT NULL,
             messenger_contact TEXT NOT NULL,
@@ -73,9 +78,11 @@ const db = new sqlite3.Database('./cinema.db', sqlite3.OPEN_READWRITE, (err) => 
             status TEXT DEFAULT 'active',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (material_id) REFERENCES movies(id)
+            FOREIGN KEY (material_id) REFERENCES movies(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )`);
         
+        // Таблица reviews (отзывы)
         db.run(`CREATE TABLE IF NOT EXISTS reviews (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             movie_id INTEGER,
@@ -87,11 +94,13 @@ const db = new sqlite3.Database('./cinema.db', sqlite3.OPEN_READWRITE, (err) => 
             FOREIGN KEY (user_id) REFERENCES users(id)
         )`);
         
+        // Жанры
         db.run(`INSERT OR IGNORE INTO genres (id, name) VALUES 
             (1, 'ПГС'), (2, 'Щебень'), (3, 'Песок'), (4, 'Глина'),
             (5, 'Гравий'), (6, 'Отсев'), (7, 'Керамзит'), (8, 'Известняк'),
             (9, 'Доломит'), (10, 'Грунт')`);
         
+        // Материалы
         const materials = [
             { title: 'ПГС (песчано-гравийная смесь)', description: 'ПГС — песчано-гравийная смесь. Природная смесь с содержанием гравия до 30%. Идеально для дорожных работ.', duration_minutes: 850, release_year: '2017', poster_url: 'https://stroyresurs02.ru/wp-content/uploads/2015/04/pgs.jpg', genre_id: 1, rating: 5 },
             { title: 'Щебень гранитный', description: 'Щебень гранитный фракции 5-20 мм. Для бетона и фундаментов.', duration_minutes: 1250, release_year: '2014', poster_url: 'https://50.img.avito.st/image/1/1.rwvj5La4A-LVTcHnsb6dLZdGAeRdRYHqlUAB4FNNC-hV.16Nt7A2l-cRU3JSDU4RPwXvm9QFqsGjqLRsehwUwVTE', genre_id: 2, rating: 5 },
@@ -124,8 +133,19 @@ const dbGet = (sql, params = []) => new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => err ? reject(err) : resolve(row));
 });
 
-// Middleware
-const isAuthenticated = (req, res, next) => req.session.user ? next() : res.status(401).json({ error: 'Не авторизован' });
+// ========== MIDDLEWARE ==========
+const isAuthenticated = (req, res, next) => {
+    if (req.session.user) {
+        next();
+    } else {
+        if (req.xhr || req.headers['content-type'] === 'application/json' || req.path.startsWith('/api/')) {
+            res.status(401).json({ error: 'Не авторизован', redirect: '/login' });
+        } else {
+            res.redirect('/login?error=not_authorized');
+        }
+    }
+};
+
 const isAdmin = (req, res, next) => req.session.user && req.session.user.role === 'admin' ? next() : res.status(403).json({ error: 'Доступ запрещен' });
 
 const sendHtmlFile = (res, filename) => {
@@ -234,15 +254,67 @@ app.get('/api/genres', async (req, res) => {
     res.json(genres);
 });
 
+// ========== API ОТЗЫВЫ ==========
 app.get('/reviews', async (req, res) => {
-    const reviews = await dbAll(`SELECT r.*, u.username, u.avatar_url, m.title as movie_title FROM reviews r JOIN users u ON r.user_id = u.id LEFT JOIN movies m ON r.movie_id = m.id ORDER BY r.created_at DESC LIMIT 100`);
-    res.json(reviews);
+    try {
+        const reviews = await dbAll(`
+            SELECT r.*, u.username, u.avatar_url, m.title as movie_title 
+            FROM reviews r
+            JOIN users u ON r.user_id = u.id
+            LEFT JOIN movies m ON r.movie_id = m.id
+            ORDER BY r.created_at DESC
+            LIMIT 100
+        `);
+        res.json(reviews);
+    } catch (err) {
+        console.error('Ошибка загрузки отзывов:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/reviews/:movieId', async (req, res) => {
+    try {
+        const movieId = req.params.movieId;
+        console.log(`Запрос отзывов для материала ID: ${movieId}`);
+        
+        if (!movieId || isNaN(movieId)) {
+            return res.status(400).json({ error: 'Неверный ID материала' });
+        }
+        
+        const reviews = await dbAll(`
+            SELECT r.*, u.username, u.avatar_url, m.title as movie_title 
+            FROM reviews r
+            JOIN users u ON r.user_id = u.id
+            LEFT JOIN movies m ON r.movie_id = m.id
+            WHERE r.movie_id = ?
+            ORDER BY r.created_at DESC
+        `, [movieId]);
+        
+        console.log(`Найдено отзывов: ${reviews.length}`);
+        res.json(reviews);
+    } catch (err) {
+        console.error('Ошибка загрузки отзывов для материала:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/reviews', isAuthenticated, async (req, res) => {
-    const { movie_id, rating, comment } = req.body;
-    const result = await dbRun('INSERT INTO reviews (movie_id, user_id, rating, comment) VALUES (?, ?, ?, ?)', [movie_id, req.session.user.id, rating, comment]);
-    res.json({ success: true, id: result.id });
+    try {
+        const { movie_id, rating, comment } = req.body;
+        
+        if (!movie_id || !rating || !comment) {
+            return res.status(400).json({ error: 'Заполните все поля' });
+        }
+        
+        const result = await dbRun(
+            'INSERT INTO reviews (movie_id, user_id, rating, comment) VALUES (?, ?, ?, ?)',
+            [movie_id, req.session.user.id, rating, comment]
+        );
+        res.json({ success: true, id: result.id });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ========== АВТОРИЗАЦИЯ ==========
@@ -301,18 +373,50 @@ app.put('/api/user/password', isAuthenticated, async (req, res) => {
 });
 
 // ========== ЗАЯВКИ ==========
+// Все заявки (для админа)
 app.get('/api/requests', isAdmin, async (req, res) => {
     const requests = await dbAll(`SELECT r.*, m.title as material_name FROM requests r JOIN movies m ON r.material_id = m.id ORDER BY r.created_at DESC`);
     res.json(requests);
 });
 
+// Создание заявки (с привязкой к пользователю, если авторизован)
 app.post('/api/requests', async (req, res) => {
     const { phone, messenger, messenger_contact, material_id, volume, client_type, comment } = req.body;
     if (!phone || !messenger || !messenger_contact || !material_id || !volume || !client_type) {
         return res.status(400).json({ error: 'Заполните все поля' });
     }
-    const result = await dbRun(`INSERT INTO requests (phone, messenger, messenger_contact, material_id, volume, client_type, comment, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`, [phone, messenger, messenger_contact, material_id, volume, client_type, comment || null]);
+    
+    let userId = null;
+    if (req.session.user) {
+        userId = req.session.user.id;
+    }
+    
+    const result = await dbRun(
+        `INSERT INTO requests (user_id, phone, messenger, messenger_contact, material_id, volume, client_type, comment, status) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+        [userId, phone, messenger, messenger_contact, material_id, volume, client_type, comment || null]
+    );
     res.json({ success: true, id: result.id });
+});
+
+// Заявки текущего пользователя
+app.get('/api/user/requests', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        
+        const requests = await dbAll(`
+            SELECT r.*, m.title as material_name 
+            FROM requests r 
+            JOIN movies m ON r.material_id = m.id 
+            WHERE r.user_id = ?
+            ORDER BY r.created_at DESC
+        `, [userId]);
+        
+        res.json({ success: true, requests });
+    } catch (err) {
+        console.error('Ошибка загрузки заявок пользователя:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 app.put('/api/requests/:id/status', isAdmin, async (req, res) => {
@@ -324,7 +428,6 @@ app.delete('/api/requests/:id', isAdmin, async (req, res) => {
     await dbRun('DELETE FROM requests WHERE id = ?', [req.params.id]);
     res.json({ success: true });
 });
-
 
 // ========== АДМИН ==========
 app.get('/api/admin/users', isAdmin, async (req, res) => {
