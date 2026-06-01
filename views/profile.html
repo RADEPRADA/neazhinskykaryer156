@@ -30,7 +30,6 @@
             font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
         }
         
-        /* Header - такой же как на главной */
         header {
             background: var(--primary-dark);
             border-bottom: 1px solid var(--accent-green);
@@ -163,6 +162,45 @@
             color: white;
         }
         
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            color: var(--text-gray);
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .tab-btn:hover {
+            background: var(--primary-dark);
+            color: var(--accent-green-bright);
+        }
+        
+        .tab-btn.active {
+            background: var(--accent-green);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
         .profile-container {
             display: grid;
             grid-template-columns: 300px 1fr;
@@ -215,7 +253,7 @@
             background: var(--accent-green-bright);
         }
         
-        .profile-form-section {
+        .right-panel {
             background: var(--primary-gray);
             border-radius: 15px;
             padding: 25px;
@@ -313,6 +351,82 @@
             display: none;
         }
         
+        /* Таблица заявок */
+        .requests-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .requests-table th,
+        .requests-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .requests-table th {
+            background: var(--primary-dark);
+            color: var(--accent-green-bright);
+            font-weight: 600;
+        }
+        
+        .requests-table tr:hover {
+            background: var(--primary-dark);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: rgba(60, 156, 110, 0.2);
+            color: var(--accent-green-bright);
+        }
+        
+        .status-completed {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+        
+        .status-cancelled {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+        
+        .empty-requests {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-gray);
+        }
+        
+        .request-filter {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            background: var(--primary-dark);
+            border: 1px solid var(--border-color);
+            padding: 6px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            color: var(--text-gray);
+            font-size: 0.85rem;
+        }
+        
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: var(--accent-green);
+            color: white;
+            border-color: var(--accent-green);
+        }
+        
         @media (max-width: 850px) {
             .nav-links {
                 gap: 12px;
@@ -356,6 +470,15 @@
                 width: 100%;
                 justify-content: center;
             }
+            
+            .requests-table {
+                font-size: 0.85rem;
+            }
+            
+            .requests-table th,
+            .requests-table td {
+                padding: 8px;
+            }
         }
         
         @media (max-width: 480px) {
@@ -365,6 +488,10 @@
             .avatar-preview {
                 width: 140px;
                 height: 140px;
+            }
+            .requests-table {
+                display: block;
+                overflow-x: auto;
             }
         }
     </style>
@@ -404,6 +531,7 @@
 
     <div class="container">
         <div class="profile-container">
+            <!-- Левая колонка - Аватар -->
             <div class="avatar-section">
                 <img id="avatarPreview" class="avatar-preview" src="https://via.placeholder.com/180x180?text=Avatar" alt="Аватар">
                 <div class="info-text" style="margin-bottom: 10px;">
@@ -419,53 +547,78 @@
                 </div>
             </div>
 
-            <div class="profile-form-section">
-                <div id="message" class="message"></div>
-                
-                <form id="profileForm">
-                    <div class="form-group">
-                        <label><i class="fas fa-user"></i> Имя пользователя</label>
-                        <input type="text" id="usernameInput" name="username">
-                    </div>
+            <!-- Правая колонка - Вкладки -->
+            <div class="right-panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="profile">👤 Профиль</button>
+                    <button class="tab-btn" data-tab="requests">📋 Мои заявки</button>
+                </div>
+
+                <!-- Вкладка Профиль -->
+                <div id="tab-profile" class="tab-content active">
+                    <div id="message" class="message"></div>
                     
-                    <div class="form-group">
-                        <label><i class="fas fa-envelope"></i> Email</label>
-                        <input type="email" id="emailInput" name="email">
-                    </div>
+                    <form id="profileForm">
+                        <div class="form-group">
+                            <label><i class="fas fa-user"></i> Имя пользователя</label>
+                            <input type="text" id="usernameInput" name="username">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-envelope"></i> Email</label>
+                            <input type="email" id="emailInput" name="email">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-info-circle"></i> О себе</label>
+                            <textarea id="bioInput" name="bio" placeholder="Расскажите о себе..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn-save">
+                            <i class="fas fa-save"></i> Сохранить данные
+                        </button>
+                    </form>
                     
-                    <div class="form-group">
-                        <label><i class="fas fa-info-circle"></i> О себе</label>
-                        <textarea id="bioInput" name="bio" placeholder="Расскажите о себе..."></textarea>
-                    </div>
+                    <hr>
                     
-                    <button type="submit" class="btn-save">
-                        <i class="fas fa-save"></i> Сохранить данные
-                    </button>
-                </form>
-                
-                <hr>
-                
-                <h3><i class="fas fa-lock"></i> Смена пароля</h3>
-                <form id="passwordForm">
-                    <div class="form-group">
-                        <label><i class="fas fa-key"></i> Текущий пароль</label>
-                        <input type="password" id="currentPassword" required>
+                    <h3><i class="fas fa-lock"></i> Смена пароля</h3>
+                    <form id="passwordForm">
+                        <div class="form-group">
+                            <label><i class="fas fa-key"></i> Текущий пароль</label>
+                            <input type="password" id="currentPassword" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-lock"></i> Новый пароль</label>
+                            <input type="password" id="newPassword" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-check-circle"></i> Подтвердите новый пароль</label>
+                            <input type="password" id="confirmPassword" required>
+                        </div>
+                        
+                        <button type="submit" class="btn-save">
+                            <i class="fas fa-key"></i> Сменить пароль
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Вкладка Мои заявки -->
+                <div id="tab-requests" class="tab-content">
+                    <div class="request-filter">
+                        <button class="filter-btn active" data-status="all">Все</button>
+                        <button class="filter-btn" data-status="active">Активные</button>
+                        <button class="filter-btn" data-status="completed">Выполненные</button>
+                        <button class="filter-btn" data-status="cancelled">Отменённые</button>
                     </div>
-                    
-                    <div class="form-group">
-                        <label><i class="fas fa-lock"></i> Новый пароль</label>
-                        <input type="password" id="newPassword" required>
+                    <div id="requestsList">
+                        <div style="text-align: center; padding: 40px;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Загрузка заявок...</p>
+                        </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label><i class="fas fa-check-circle"></i> Подтвердите новый пароль</label>
-                        <input type="password" id="confirmPassword" required>
-                    </div>
-                    
-                    <button type="submit" class="btn-save">
-                        <i class="fas fa-key"></i> Сменить пароль
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -479,6 +632,56 @@
 
     <script>
         let currentUser = null;
+        let allRequests = [];
+        
+        // Стили для уведомлений
+        const notificationStyle = document.createElement('style');
+        notificationStyle.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(notificationStyle);
+        
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'warning' ? '#f44336' : (type === 'success' ? '#4caf50' : '#ff9800')};
+                color: white;
+                padding: 15px 25px;
+                border-radius: 8px;
+                z-index: 10001;
+                font-size: 14px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease;
+                cursor: pointer;
+            `;
+            notification.innerHTML = `<i class="fas ${type === 'warning' ? 'fa-exclamation-triangle' : (type === 'success' ? 'fa-check-circle' : 'fa-info-circle')}"></i> ${message}`;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // Проверяем параметр error в URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('error') === 'not_authorized') {
+            showNotification('Для доступа к профилю необходимо авторизоваться', 'warning');
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        }
         
         async function loadUserData() {
             try {
@@ -486,14 +689,16 @@
                 const data = await response.json();
                 
                 if (!data.user) {
-                    window.location.href = '/login';
+                    showNotification('Для доступа к профилю необходимо авторизоваться', 'warning');
+                    setTimeout(() => {
+                        window.location.href = '/login?error=not_authorized';
+                    }, 1500);
                     return;
                 }
                 
                 currentUser = data.user;
                 document.getElementById('username').textContent = data.user.username;
                 
-                // Аватар в шапке
                 const avatarImg = document.getElementById('userAvatar');
                 if (data.user.avatar_url && data.user.avatar_url !== 'null') {
                     avatarImg.src = data.user.avatar_url;
@@ -507,6 +712,7 @@
                 }
                 
                 await loadProfile();
+                await loadUserRequests();
             } catch (error) {
                 console.error('Ошибка загрузки пользователя:', error);
                 showMessage('Ошибка загрузки данных', 'error');
@@ -535,6 +741,115 @@
                 console.error('Ошибка загрузки профиля:', error);
                 showMessage('Ошибка загрузки профиля', 'error');
             }
+        }
+        
+        async function loadUserRequests() {
+            try {
+                const response = await fetch('/api/user/requests');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allRequests = data.requests;
+                    filterRequests('all');
+                } else {
+                    console.error('Ошибка загрузки заявок');
+                    document.getElementById('requestsList').innerHTML = `
+                        <div class="empty-requests">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Ошибка загрузки заявок</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('requestsList').innerHTML = `
+                    <div class="empty-requests">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Ошибка загрузки заявок</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function filterRequests(status) {
+            let filtered = [];
+            
+            if (status === 'all') {
+                filtered = allRequests;
+            } else if (status === 'active') {
+                filtered = allRequests.filter(r => r.status === 'active');
+            } else if (status === 'completed') {
+                filtered = allRequests.filter(r => r.status === 'completed');
+            } else if (status === 'cancelled') {
+                filtered = allRequests.filter(r => r.status === 'cancelled');
+            }
+            
+            displayRequests(filtered);
+        }
+        
+        function displayRequests(requests) {
+            const container = document.getElementById('requestsList');
+            
+            if (!requests || requests.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-requests">
+                        <i class="fas fa-folder-open"></i>
+                        <p>У вас пока нет заявок</p>
+                        <a href="/request" class="btn-save" style="display: inline-block; margin-top: 15px;">Оставить заявку</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            const getStatusText = (status) => {
+                switch(status) {
+                    case 'active': return 'Активна';
+                    case 'completed': return 'Выполнена';
+                    case 'cancelled': return 'Отменена';
+                    default: return status;
+                }
+            };
+            
+            const getStatusClass = (status) => {
+                switch(status) {
+                    case 'active': return 'status-active';
+                    case 'completed': return 'status-completed';
+                    case 'cancelled': return 'status-cancelled';
+                    default: return 'status-active';
+                }
+            };
+            
+            container.innerHTML = `
+                <table class="requests-table">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Материал</th>
+                            <th>Объём (т)</th>
+                            <th>Тип клиента</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${requests.map(req => `
+                            <tr>
+                                <td>${new Date(req.created_at).toLocaleDateString('ru-RU')}</td>
+                                <td>${escapeHtml(req.material_name || 'Материал')}</td>
+                                <td>${req.volume}</td>
+                                <td>${req.client_type === 'physical' ? 'Физ. лицо' : 'Юр. лицо'}</td>
+                                <td><span class="status-badge ${getStatusClass(req.status)}">${getStatusText(req.status)}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         document.getElementById('avatarUrl').addEventListener('input', function() {
@@ -615,7 +930,7 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showMessage('Данные успешно обновлены! Аватар сохранен.', 'success');
+                    showMessage('Данные успешно обновлены!', 'success');
                     document.getElementById('username').textContent = username;
                     setTimeout(() => location.reload(), 1500);
                 } else {
@@ -673,6 +988,31 @@
                 messageDiv.className = 'message';
             }, 5000);
         }
+        
+        // Вкладки
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.dataset.tab;
+                
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                
+                btn.classList.add('active');
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+            });
+        });
+        
+        // Фильтры заявок
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const status = btn.dataset.status;
+                
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                filterRequests(status);
+            });
+        });
         
         document.getElementById('logoutBtn').addEventListener('click', async (e) => {
             e.preventDefault();
