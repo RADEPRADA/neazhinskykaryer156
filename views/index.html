@@ -1051,6 +1051,51 @@
         
         window.showMaterialDetails = showMaterialDetails;
         window.closeMovieModal = closeMovieModal;
+
+        // Функция для показа глобальных уведомлений
+function showGlobalNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'warning' ? '#f44336' : (type === 'success' ? '#4caf50' : '#ff9800')};
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        z-index: 10001;
+        font-size: 14px;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideInNotif 0.3s ease;
+        cursor: pointer;
+    `;
+    notification.innerHTML = `<i class="fas ${type === 'warning' ? 'fa-exclamation-triangle' : (type === 'success' ? 'fa-check-circle' : 'fa-info-circle')}"></i> ${message}`;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOutNotif 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Добавляем стили для анимации, если их нет
+if (!document.querySelector('#notif-style')) {
+    const notifStyle = document.createElement('style');
+    notifStyle.id = 'notif-style';
+    notifStyle.textContent = `
+        @keyframes slideInNotif {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutNotif {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(notifStyle);
+}
     </script>
+    
 </body>
 </html>
